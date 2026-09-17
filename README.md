@@ -10,10 +10,26 @@ A fast, dependency-free status line for [Claude Code](https://claude.com/claude-
 
 ### Preview
 
+<!-- Screenshot goes to assets/preview.png — drop the file in, no other change needed. -->
+![cc-status-line in a terminal: main session line and one line per running subagent](assets/preview.png)
+
 ```text
 Opus 5 │ main ✓ │ ctx ████░░░░░░ 42% │ ↑15.0k ↓3.2k │ $0.37 │ ~/Codes/my-project
 ↳ Opus 5 │ Explore │ ctx ███████░░░ 68% │ ↓12.4k │ find all status line configs
 ```
+
+### Subagent states
+
+A subagent line is built up in stages. These two screenshots show the same agent at each stage:
+
+<!-- Screenshots go to assets/subagent_new.png and assets/subagent_token.png — drop the files in, no other change needed. -->
+![A subagent line right after opening, before token counts arrive](assets/subagent_new.png)
+![The same subagent line once token counts are populated](assets/subagent_token.png)
+
+- **Just opened** — the line renders from model, agent type, task description and, when the context window is already known, the context bar. Token counts have not arrived yet.
+- **With token data** — the `↓` token segment fills in as the agent runs.
+
+Either stage degrades cleanly: a segment whose data is missing is omitted rather than rendered as a placeholder.
 
 ### Features
 
@@ -159,10 +175,26 @@ statusline/
 
 ### 效果预览
 
+<!-- 截图放到 assets/preview.png，放进去即可，无需改其他内容。 -->
+![cc-status-line 终端实际效果：主会话状态行，以及每个运行中的 subagent 各一行](assets/preview.png)
+
 ```text
 Opus 5 │ main ✓ │ ctx ████░░░░░░ 42% │ ↑15.0k ↓3.2k │ $0.37 │ ~/Codes/my-project
 ↳ Opus 5 │ Explore │ ctx ███████░░░ 68% │ ↓12.4k │ 查找所有 status line 配置
 ```
+
+### Subagent 状态
+
+subagent 状态行是分阶段拼出来的。下面两张截图是同一个 agent 在不同阶段的样子：
+
+<!-- 截图放到 assets/subagent_new.png 和 assets/subagent_token.png，放进去即可，无需改其他内容。 -->
+![Subagent 刚打开、token 计数尚未到来时的状态行](assets/subagent_new.png)
+![同一个 subagent 状态行在 token 计数填充后的样子](assets/subagent_token.png)
+
+- **刚打开** —— 状态行由模型、agent 类型、任务描述，以及已知上下文窗口时的进度条拼出，此时还没有 token 计数。
+- **有 token 数据时** —— 随着 agent 运行，`↓` token 片段会填充进来。
+
+两种阶段都做了降级：某个片段的数据缺失时会被直接省略，而不是渲染成占位符。
 
 ### 特性
 
