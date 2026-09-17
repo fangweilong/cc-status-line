@@ -37,7 +37,7 @@ Opus 5 │ main ✓ │ ctx ████░░░░░░ 42% │ ↑15.0k ↓3
 1. Clone the repository anywhere you like:
 
    ```bash
-   git clone https://github.com/<your-name>/cc-status-line.git
+   git clone https://github.com/fangweilong/cc-status-line.git
    ```
 
 2. Point Claude Code at the entry script. Add to `~/.claude/settings.json`:
@@ -55,6 +55,17 @@ Opus 5 │ main ✓ │ ctx ████░░░░░░ 42% │ ↑15.0k ↓3
      }
    }
    ```
+
+   ⚠️ **The `main` / `subagent` argument is mandatory — do not drop it.**
+
+   > `statusLine` **must** end with `main`, and `subagentStatusLine` **must** end with `subagent`.
+   > The two keys are not interchangeable, and neither command works without its argument.
+   >
+   > - `"command": "... statusline.py"` ❌ — missing argument, renders an error line
+   > - `"command": "... statusline.py subagent"` under `statusLine` ❌ — wrong mode, subagent JSON is not a valid main status line
+   > - `"command": "... statusline.py main"` under `statusLine` ✅
+   >
+   > A wrong or missing argument is reported visibly in the status line itself — see [Errors](#errors).
 
    See [examples/settings.json](examples/settings.json) for a copy-paste version.
 
@@ -85,7 +96,26 @@ python statusline.py main
 python statusline.py subagent
 ```
 
-Both modes read Claude Code's status JSON from **stdin** and never take positional arguments other than the mode. If stdin is empty or malformed, the script prints a minimal line rather than failing.
+Both modes read Claude Code's status JSON from **stdin**. The mode argument is required — see [Errors](#errors) for what happens when it is missing.
+
+### Errors
+
+The entry point validates its mode argument and never fails silently. Because a status line has no stderr channel, every error is printed to **stdout** as a single visible line:
+
+```text
+⚠ statusline: missing mode argument │ check your settings.json │ statusline.py <main|subagent>
+⚠ statusline: unknown mode 'mian' │ expected main or subagent │ statusline.py <main|subagent>
+⚠ statusline: KeyError: 'foo' │ render failed │ statusline.py <main|subagent>
+```
+
+| Case | Behavior | Exit code |
+| --- | --- | --- |
+| No argument | `missing mode argument` line | 1 |
+| Argument not `main` / `subagent` (case-insensitive) | `unknown mode '...'` line | 1 |
+| Unexpected exception during rendering | `ExceptionType: message` line | 1 |
+| Empty or malformed stdin JSON | No error — renders a minimal line (by design) | 0 |
+
+If you see a `⚠ statusline:` line, the cause is almost always the `command` in your `settings.json` — re-check the argument at the end of it.
 
 ### Input fields
 
@@ -111,7 +141,7 @@ Subagent mode additionally reads `tasks` (or `subagents`), and per task: `id` / 
 ### Project layout
 
 ```text
-statusline.py            # entry point; dispatches on argv[1]: main (default) | subagent
+statusline.py            # entry point; requires argv[1]: main | subagent
 statusline/
   main.py                # main session line
   subagent.py            # per-subagent lines
@@ -156,7 +186,7 @@ Opus 5 │ main ✓ │ ctx ████░░░░░░ 42% │ ↑15.0k ↓3
 1. 克隆仓库到任意位置：
 
    ```bash
-   git clone https://github.com/<your-name>/cc-status-line.git
+   git clone https://github.com/fangweilong/cc-status-line.git
    ```
 
 2. 在 `~/.claude/settings.json` 中指向入口脚本：
@@ -174,6 +204,17 @@ Opus 5 │ main ✓ │ ctx ████░░░░░░ 42% │ ↑15.0k ↓3
      }
    }
    ```
+
+   ⚠️ **`main` / `subagent` 这两个参数必须保留，不能省略。**
+
+   > `statusLine` 的命令**必须**以 `main` 结尾，`subagentStatusLine` 的命令**必须**以 `subagent` 结尾。
+   > 两个配置项不能互换，任何一条命令少了参数都不工作。
+   >
+   > - `"command": "... statusline.py"` ❌ —— 缺少参数，状态栏会显示错误提示
+   > - `statusLine` 下写 `"command": "... statusline.py subagent"` ❌ —— 模式错误，subagent 的 JSON 不是合法的主状态行
+   > - `statusLine` 下写 `"command": "... statusline.py main"` ✅
+   >
+   > 参数缺失或写错时，错误会直接显示在状态栏上，详见[错误提示](#错误提示)。
 
    可直接复制 [examples/settings.json](examples/settings.json)。
 
@@ -204,7 +245,26 @@ python statusline.py main
 python statusline.py subagent
 ```
 
-两种模式都从 **stdin** 读取 Claude Code 传入的状态 JSON，除模式名外不接受其他参数。stdin 为空或格式错误时会输出最小可用内容，不会报错中断。
+两种模式都从 **stdin** 读取 Claude Code 传入的状态 JSON。模式参数是必填的，缺失时的表现见[错误提示](#错误提示)。
+
+### 错误提示
+
+入口脚本会校验模式参数，不会静默失败。由于状态栏没有 stderr 通道，所有错误都打印到 **stdout**，输出为一行可见的提示：
+
+```text
+⚠ statusline: missing mode argument │ check your settings.json │ statusline.py <main|subagent>
+⚠ statusline: unknown mode 'mian' │ expected main or subagent │ statusline.py <main|subagent>
+⚠ statusline: KeyError: 'foo' │ render failed │ statusline.py <main|subagent>
+```
+
+| 情况 | 行为 | 退出码 |
+| --- | --- | --- |
+| 未传参数 | 输出 `missing mode argument` 提示行 | 1 |
+| 参数不是 `main` / `subagent`（不区分大小写） | 输出 `unknown mode '...'` 提示行 | 1 |
+| 渲染过程中出现未预期异常 | 输出 `异常类型: 消息` 提示行 | 1 |
+| stdin JSON 为空或格式错误 | 不报错，输出最小可用内容（有意为之） | 0 |
+
+只要看到 `⚠ statusline:` 开头的行，问题基本都在 `settings.json` 的 `command` 上 —— 回头检查一下命令末尾的参数。
 
 ### 输入字段
 
@@ -230,7 +290,7 @@ Subagent 模式额外读取 `tasks`（或 `subagents`），每个任务内读取
 ### 项目结构
 
 ```text
-statusline.py            # 入口，按 argv[1] 分发：main（默认）| subagent
+statusline.py            # 入口，必须传 argv[1]：main | subagent
 statusline/
   main.py                # 主会话状态行
   subagent.py            # 各 subagent 状态行
