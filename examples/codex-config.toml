@@ -1,0 +1,24 @@
+# Codex CLI configuration example (~/.codex/config.toml)
+# OpenAI Codex CLI 状态栏配置示例
+
+[tui]
+# Codex CLI 原生状态栏项目顺序与展示项
+status_line = [
+    "model-with-reasoning",
+    "project-root",
+    "current-dir",
+    "git-branch",
+    "five-hour-limit",
+    "weekly-limit",
+    "context-used",
+    "context-window-size",
+    "used-tokens"
+]
+status_line_use_colors = true
+
+# 说明：
+# 1. Codex CLI 原生使用内置标识符（Built-in item identifiers）渲染状态栏。
+# 2. 如果你在 Shell、tmux 或自定义终端外壳中包装使用 Codex，可调用 cc-status-line 进行统一渲染：
+#    python /absolute/path/to/cc-status-line/statusline.py codex
+#    或者：
+#    python /absolute/path/to/cc-status-line/statusline.py main --cli codex

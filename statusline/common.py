@@ -171,15 +171,80 @@ def get_nested(obj, *paths, default=None):
     return default
 
 
-def model_name(data):
+def detect_cli(data=None, explicit_cli=None):
+    if explicit_cli:
+        cli = explicit_cli.lower().strip()
+        if cli in ("agy", "antigravity", "antigravitycli", "antigravity-cli"):
+            return "antigravity"
+        if cli in ("claude", "claudecode", "claude-code", "cc"):
+            return "claude"
+        if cli in ("codex", "codex-cli", "openai-codex"):
+            return "codex"
+        return cli
+
+    env_cli = os.environ.get("STATUSLINE_CLI")
+    if env_cli:
+        return detect_cli(data, explicit_cli=env_cli)
+
+    if not data or not isinstance(data, dict):
+        return "claude"
+
+    # 1. Check model identifier
+    model_id = ""
+    model = data.get("model")
+    if isinstance(model, dict):
+        model_id = str(
+            model.get("id")
+            or model.get("name")
+            or model.get("display_name")
+            or ""
+        ).lower()
+    elif model:
+        model_id = str(model).lower()
+
+    if "claude" in model_id:
+        return "claude"
+    if "gemini" in model_id:
+        return "antigravity"
+    if any(x in model_id for x in ("codex", "gpt", "o1", "o3", "o4")):
+        return "codex"
+
+    # 2. Antigravity-specific indicators
+    product = str(data.get("product") or "").lower()
+    if product in ("antigravity", "agy", "gemini"):
+        return "antigravity"
+
+    if "quota" in data or "exceeds_200k_tokens" in data:
+        return "antigravity"
+
+    # 3. Claude Code-specific indicators
+    if "cost" in data or "rate_limits" in data:
+        return "claude"
+
+    # 4. Default to claude (preserves original cc-status-line behavior)
+    return "claude"
+
+
+def model_name(data, cli=None):
     model = data.get("model")
 
     if isinstance(model, dict):
-        return (
+        name = (
             model.get("display_name")
             or model.get("name")
             or model.get("id")
-            or "Claude"
         )
+        if name:
+            return str(name)
 
-    return str(model or "Claude")
+    if model:
+        return str(model)
+
+    if cli == "antigravity":
+        return "Gemini"
+    if cli == "claude":
+        return "Claude"
+    if cli == "codex":
+        return "Codex"
+
+    return "Agent"

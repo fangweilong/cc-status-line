@@ -1,1 +1,1 @@
-"""Claude Code statusline package."""
+"""Universal CLI status line package (supporting Claude Code, Antigravity CLI, etc.)."""

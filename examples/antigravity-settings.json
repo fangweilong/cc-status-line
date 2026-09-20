@@ -1,0 +1,9 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "python /absolute/path/to/cc-status-line/statusline.py main",
+    "enabled": true,
+    "padding": 0,
+    "stack_with_default": false
+  }
+}

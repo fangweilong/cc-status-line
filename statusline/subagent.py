@@ -7,6 +7,7 @@ from .common import (
     context_color,
     progress_bar,
     get_nested,
+    detect_cli,
 )
 
 from .colors import (
@@ -18,7 +19,7 @@ from .colors import (
 )
 
 
-def task_model(task):
+def task_model(task, cli=None):
     model = task.get("model")
 
     if isinstance(model, dict):
@@ -26,15 +27,24 @@ def task_model(task):
             model.get("display_name")
             or model.get("name")
             or model.get("id")
-            or "Claude"
+            or ("Gemini" if cli == "antigravity" else "Claude")
         )
 
-    return str(model or "Claude")
+    if model:
+        return str(model)
+
+    if cli == "antigravity":
+        return "Gemini"
+    if cli == "codex":
+        return "Codex"
+    return "Claude"
 
 
 def task_name(task):
     return (
         task.get("name")
+        or task.get("role")
+        or task.get("type_name")
         or task.get("agent_type")
         or task.get("subagent_type")
         or task.get("type")
@@ -43,15 +53,10 @@ def task_name(task):
 
 
 def task_context(task):
-    context = task.get(
-        "context_window"
-    )
+    context = task.get("context_window")
 
     if isinstance(context, dict):
-        value = context.get(
-            "used_percentage"
-        )
-
+        value = context.get("used_percentage")
         if value is not None:
             return value
 
@@ -71,10 +76,8 @@ def task_tokens(task):
         task.get("tokenCount")
         or task.get("token_count")
         or task.get("tokens")
-        or get_nested(
-            task,
-            ("usage", "total_tokens"),
-        )
+        or get_nested(task, ("usage", "total_tokens"))
+        or get_nested(task, ("usage", "totalTokens"))
     )
 
     if tokens is not None:
@@ -82,18 +85,14 @@ def task_tokens(task):
 
     input_tokens = (
         task.get("input_tokens")
-        or get_nested(
-            task,
-            ("usage", "input_tokens"),
-        )
+        or get_nested(task, ("usage", "input_tokens"))
+        or get_nested(task, ("usage", "inputTokens"))
     )
 
     output_tokens = (
         task.get("output_tokens")
-        or get_nested(
-            task,
-            ("usage", "output_tokens"),
-        )
+        or get_nested(task, ("usage", "output_tokens"))
+        or get_nested(task, ("usage", "outputTokens"))
     )
 
     if (
@@ -101,8 +100,8 @@ def task_tokens(task):
         or output_tokens is not None
     ):
         return (
-            f"↑{fmt_tokens(input_tokens)} "
-            f"↓{fmt_tokens(output_tokens)}"
+            f"↑{fmt_tokens(input_tokens or 0)} "
+            f"↓{fmt_tokens(output_tokens or 0)}"
         )
 
     return ""
@@ -111,6 +110,7 @@ def task_tokens(task):
 def task_content(task):
     return (
         task.get("description")
+        or task.get("prompt")
         or task.get("content")
         or task.get("subject")
         or task.get("title")
@@ -118,12 +118,15 @@ def task_content(task):
     )
 
 
-def render_subagent():
+def render_subagent(cli=None):
     data = read_json_stdin()
+    active_cli = detect_cli(data, explicit_cli=cli)
 
     tasks = (
         data.get("tasks")
         or data.get("subagents")
+        or get_nested(data, ("subagent_info", "subagents"))
+        or get_nested(data, ("subagentInfo", "subagents"))
         or []
     )
 
@@ -136,12 +139,13 @@ def render_subagent():
 
         task_id = str(
             task.get("id")
+            or task.get("conversation_id")
             or task.get("task_id")
             or task.get("session_id")
             or task_name(task)
         )
 
-        model = task_model(task)
+        model = task_model(task, cli=active_cli)
         name = task_name(task)
 
         content = (
@@ -174,9 +178,14 @@ def render_subagent():
             )
 
         if tokens:
+            token_display = (
+                tokens
+                if (tokens.startswith("↑") or tokens.startswith("↓"))
+                else f"↓{tokens}"
+            )
             pieces.append(
                 f"{BLUE}"
-                f"↓{tokens}"
+                f"{token_display}"
                 f"{RESET}"
             )
 
