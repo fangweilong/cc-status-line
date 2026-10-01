@@ -186,7 +186,7 @@ python statusline.py subagent
 ### Standalone Binary (Optional)
 
 If you prefer not having Python installed or want a single executable:
-- Prebuilt standalone executables are automatically generated via GitHub Actions for **Windows (`.exe`)**, **Linux (`x86_64`)**, and **macOS (`Intel / Apple Silicon`)** on every release.
+- Prebuilt standalone executables are automatically generated via GitHub Actions for **Windows (`x86_64` / `arm64`)**, **macOS (`Apple Silicon arm64`)**, and **Linux (`x86_64` / `arm64`)** on every release.
 - Download the binary for your platform from GitHub Releases, put it in your `PATH`, and run directly:
   ```bash
   # Windows
@@ -446,7 +446,7 @@ python statusline.py subagent
 ### 单体二进制文件运行（可选，免 Python 环境）
 
 如果你不想在目标环境配置 Python 环境，也可以使用单体二进制文件：
-- 仓库通过 GitHub Actions 为 **Windows (`.exe`)**、**Linux (`x86_64`)**、**macOS (`Intel / Apple Silicon`)** 在发布 Release 时自动编译单体可执行文件。
+- 仓库通过 GitHub Actions 为 **Windows (`x86_64` / `arm64`)**、**macOS (`Apple Silicon arm64`)**、**Linux (`x86_64` / `arm64`)** 在发布 Release 时自动编译单体可执行文件。
 - 直接从 GitHub Releases 页面下载对应系统的可执行文件放入 `PATH` 或项目目录：
   ```bash
   # Windows

@@ -21,13 +21,17 @@ jobs:
             target: windows-amd64
             binary_name: statusline-windows-amd64.exe
             src_binary: dist/statusline.exe
+          - os: windows-11-arm
+            target: windows-arm64
+            binary_name: statusline-windows-arm64.exe
+            src_binary: dist/statusline.exe
           - os: ubuntu-latest
             target: linux-amd64
             binary_name: statusline-linux-amd64
             src_binary: dist/statusline
-          - os: macos-13
-            target: darwin-amd64
-            binary_name: statusline-darwin-amd64
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+            binary_name: statusline-linux-arm64
             src_binary: dist/statusline
           - os: macos-14
             target: darwin-arm64
