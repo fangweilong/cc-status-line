@@ -1,3 +1,5 @@
+import os
+
 from .common import (
     read_json_stdin,
     git_info,
@@ -9,6 +11,8 @@ from .common import (
     detect_cli,
     get_nested,
     num,
+    load_session_context,
+    save_session_context,
 )
 
 from .colors import (
@@ -20,6 +24,7 @@ from .colors import (
     YELLOW,
     RESET,
 )
+from .config import load_config, DEFAULT_ORDER, I18N
 from .quota import render_quota_parts
 
 
@@ -45,9 +50,10 @@ def render_main(cli=None):
 
     model = model_name(data, cli=active_cli)
     agent_state = (
-        data.get("agent_state") or data.get("state") or ""
-        if active_cli == "antigravity"
-        else ""
+        data.get("agent_state")
+        or data.get("state")
+        or data.get("status")
+        or ""
     )
 
     cost = data.get("cost") or {}
@@ -73,72 +79,133 @@ def render_main(cli=None):
         or 0
     )
 
-    parts = [
-        f"{BOLD}"
-        f"{CYAN}"
-        f"{model}"
-        f"{RESET}"
-    ]
+    session_key = (
+        data.get("session_id")
+        or data.get("sessionId")
+        or data.get("conversation_id")
+        or (f"cwd:{os.path.normcase(os.path.abspath(cwd))}" if cwd else "")
+    )
+
+    cached = load_session_context(session_key) if session_key else None
+
+    # 判断当前原始 payload 中是否包含实际非零的 Token 数据
+    raw_token_count = (
+        num(context.get("total_input_tokens"), 0)
+        + num(context.get("input_tokens"), 0)
+        + num(context.get("total_output_tokens"), 0)
+        + num(context.get("output_tokens"), 0)
+        + num(data.get("input_tokens"), 0)
+        + num(data.get("output_tokens"), 0)
+        + num(get_nested(data, ("tokens", "input")), 0)
+        + num(get_nested(data, ("tokens", "output")), 0)
+        + num(get_nested(data, ("usage", "input_tokens")), 0)
+        + num(get_nested(data, ("usage", "output_tokens")), 0)
+    )
+    raw_has_tokens = raw_token_count > 0
+
+    if cached:
+        if num(input_tokens, 0) == 0 and cached.get("input_tokens"):
+            input_tokens = cached["input_tokens"]
+        if num(output_tokens, 0) == 0 and cached.get("output_tokens"):
+            output_tokens = cached["output_tokens"]
+        if used == 0 and cached.get("used"):
+            used = num(cached["used"], 0)
+        if total_cost is None and cached.get("cost") is not None:
+            total_cost = cached["cost"]
+
+    if session_key and raw_has_tokens:
+        save_session_context(
+            session_key,
+            used=used,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost=total_cost,
+        )
+
+    state_lower = str(agent_state).lower()
+    is_streaming = (
+        state_lower in ("thinking", "running", "streaming", "busy", "working", "tool_use")
+        or bool(cached and not raw_has_tokens)
+    )
+
+    if is_streaming:
+        if not agent_state or state_lower in ("busy", "working", "tool_use", "streaming"):
+            agent_state = "Running"
+            state_lower = "running"
+    else:
+        if not agent_state or state_lower in ("idle", "ready"):
+            agent_state = "Idle"
+            state_lower = "idle"
+
+    cfg = load_config()
+    lang = cfg.get("language", "en")
+    order = cfg.get("order", DEFAULT_ORDER)
+    modules_enabled = cfg.get("modules", {})
+
+    module_parts = {}
+    module_parts["model"] = f"{BOLD}{CYAN}{model}{RESET}"
 
     if agent_state:
         state_str = str(agent_state).strip()
-        state_lower = state_str.lower()
-        if state_lower in ("thinking", "running"):
+        if state_lower in ("thinking", "running", "streaming", "busy", "working", "tool_use"):
             state_color = CYAN
+            if state_lower in ("busy", "working", "tool_use"):
+                state_str = "Running"
         elif state_lower == "auth":
             state_color = YELLOW
         else:
             state_color = GRAY
+            if state_lower == "idle":
+                state_str = "Idle"
 
-        parts.append(
-            f"{state_color}{state_str}{RESET}"
-        )
+        state_display = state_str
+        if state_str.lower() in ("idle", "ready"):
+            state_display = I18N.get(lang, {}).get("idle", "Idle")
+        elif state_str.lower() in ("running", "working", "busy", "streaming"):
+            state_display = I18N.get(lang, {}).get("running", "Running")
+        elif state_str.lower() == "thinking":
+            state_display = I18N.get(lang, {}).get("thinking", "Thinking")
+
+        module_parts["state"] = f"{state_color}{state_display}{RESET}"
 
     git = git_info(cwd)
-
     if git:
-        parts.append(
-            f"{GREEN}{git}{RESET}"
-        )
+        module_parts["git"] = f"{GREEN}{git}{RESET}"
 
-    parts.append(
-        f"ctx "
+    ctx_label = I18N.get(lang, {}).get("ctx", "ctx")
+    module_parts["context"] = (
+        f"{ctx_label} "
         f"{progress_bar(used)} "
         f"{context_color(used)}"
         f"{used:.0f}%"
         f"{RESET}"
     )
 
-    # 上下文 token 计数始终显示
-    parts.append(
+    token_suffix = "…" if is_streaming else ""
+    module_parts["tokens"] = (
         f"{BLUE}"
         f"↑{fmt_tokens(input_tokens)} "
-        f"↓{fmt_tokens(output_tokens)}"
+        f"↓{fmt_tokens(output_tokens)}{token_suffix}"
         f"{RESET}"
     )
 
-    # 官方 OAuth 额度（5h、7d、1m等）优先显示；否则若有花费则显示花费
     if quota_parts:
-        for qp in quota_parts:
-            parts.append(qp)
-    elif total_cost is not None:
+        module_parts["quota"] = " │ ".join(quota_parts)
+
+    if total_cost is not None:
         try:
-            cost_text = (
-                f"${float(total_cost):.2f}"
-            )
+            cost_text = f"${float(total_cost):.2f}"
         except Exception:
             cost_text = "$?"
-
-        parts.append(
-            f"{GREEN}{cost_text}{RESET}"
-        )
+        module_parts["cost"] = f"{GREEN}{cost_text}{RESET}"
 
     if cwd:
-        parts.append(
-            f"{GRAY}"
-            f"{short_path(cwd)}"
-            f"{RESET}"
-        )
+        module_parts["cwd"] = f"{GRAY}{short_path(cwd)}{RESET}"
+
+    parts = []
+    for item in order:
+        if modules_enabled.get(item, True) and item in module_parts:
+            parts.append(module_parts[item])
 
     print(
         " │ ".join(parts),

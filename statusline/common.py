@@ -1,6 +1,9 @@
+import hashlib
 import json
 import os
 import subprocess
+import tempfile
+import time
 from pathlib import Path
 
 from .colors import GREEN, YELLOW, RED, GRAY, RESET
@@ -248,3 +251,65 @@ def model_name(data, cli=None):
         return "Codex"
 
     return "Agent"
+
+
+def _session_cache_dir():
+    d = Path(tempfile.gettempdir()) / "cc_statusline"
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    return d
+
+
+def load_session_context(session_key, max_age_seconds=86400):
+    """读取指定会话的上下文与 Token 缓存，避免 SSE 流式期间数据归零。"""
+    if not session_key:
+        return None
+
+    try:
+        h = hashlib.sha256(
+            session_key.encode("utf-8", errors="replace")
+        ).hexdigest()[:16]
+        cache_file = _session_cache_dir() / f"ctx_{h}.json"
+        if not cache_file.is_file():
+            return None
+
+        with open(cache_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        if isinstance(data, dict):
+            if time.time() - data.get("time", 0) <= max_age_seconds:
+                return data
+    except Exception:
+        pass
+
+    return None
+
+
+def save_session_context(session_key, used, input_tokens, output_tokens, cost=None):
+    """保存当前会话有效的上下文与 Token 统计。"""
+    if not session_key:
+        return
+
+    try:
+        h = hashlib.sha256(
+            session_key.encode("utf-8", errors="replace")
+        ).hexdigest()[:16]
+        cache_file = _session_cache_dir() / f"ctx_{h}.json"
+        tmp_file = cache_file.with_suffix(".tmp")
+
+        payload = {
+            "used": used,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost": cost,
+            "time": time.time(),
+        }
+
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+
+        tmp_file.replace(cache_file)
+    except Exception:
+        pass

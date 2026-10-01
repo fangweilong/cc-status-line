@@ -6,11 +6,13 @@ Modes:
     statusline.py subagent [--cli <antigravity|claude|generic>]
     statusline.py agy / antigravity
     statusline.py claude
+    statusline.py config / tui
 """
 
 import sys
 
 from statusline.colors import BOLD, GRAY, RED, RESET, YELLOW
+from statusline.config import run_tui
 from statusline.main import render_main
 from statusline.subagent import render_subagent
 
@@ -23,6 +25,8 @@ MODES = (
     "claude",
     "cc",
     "codex",
+    "config",
+    "tui",
 )
 
 
@@ -94,6 +98,9 @@ def main():
     elif mode == "codex":
         mode = "main"
         cli = "codex"
+
+    if mode in ("config", "tui"):
+        return run_tui()
 
     try:
         if mode == "subagent":
