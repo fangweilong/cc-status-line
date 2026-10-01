@@ -12,14 +12,11 @@
 ![cc-status-line 终端实际效果：主会话状态行，以及每个运行中的 subagent 各一行](assets/preview.png)
 
 ```text
-# Claude Code 会话（包含 OAuth 速率限制）：
-Opus 5 │ main ✓ │ ctx ████░░░░░░ 42% │ ↑15.0k ↓3.2k │ 5h 76% · 2h 15m │ 7d 59% │ ~/Codes/my-project
+# Claude Code 会话（包含缓存命中、Git 增删与 OAuth 速率限制）：
+Opus 5 │ 就绪 │ (.venv) │ main ● │ +42 -12 │ 上下文 ████░░░░░░ 42% │ ↑15.0k ↓3.2k │ ⚡缓存 80% (12.0k) │ 5h 76% · 2h 15m │ ~/Codes/my-project
 
-# Claude Code 会话（API Key 按量计费）：
-Opus 5 │ main ✓ │ ctx ████░░░░░░ 42% │ ↑15.0k ↓3.2k │ $0.37 │ ~/Codes/my-project
-
-# Antigravity CLI 会话（官方 Google OAuth 额度）：
-Gemini 2.5 Pro │ Idle │ main ✓ │ ctx ████░░░░░░ 42% │ ↑85.0k ↓15.0k │ 5h 80% · 1h │ 7d 94% · 6d │ ~/Codes/my-project
+# Antigravity CLI 会话（官方 Google OAuth 额度与运行时）：
+Gemini 2.5 Pro │ 就绪 │ pnpm │ main ✓ │ 上下文 ████░░░░░░ 42% │ ↑85.0k ↓15.0k │ ⚡缓存 71% (60.0k) │ 5h 80% · 1h │ 7d 94% · 6d │ ~/Codes/my-project
 
 # OpenAI Codex CLI / GPT 会话：
 GPT-4o │ main ✓ │ ctx ███░░░░░░░ 26% │ ↑12.0k ↓3.5k │ 5h 85% · 3h │ ~/Codes/my-project
@@ -45,11 +42,15 @@ subagent 状态行是分阶段拼出来的。下面两张截图是同一个 agen
 ### 特性
 
 - **多 CLI 兼容** —— 自动检测并支持 Claude Code、Antigravity CLI（`agy`）、OpenAI Codex CLI（`codex`）以及通用 AI 编码 CLI。
+- **Prompt 缓存命中率** —— 自动统计并显示 Prompt Cache 命中率与节省 Token 量（如 `⚡缓存 80% (12.0k)`）。
+- **虚拟环境与运行时识别** —— 自动识别激活环境与项目类型（Python `.venv`/`conda`、Node `pnpm`/`bun`/`yarn`/`.nvmrc`、Go `go.mod`、Rust `cargo`/`rust-toolchain` 等）。
+- **Git 实时增删改统计** —— 实时显示工作区相比 HEAD 的增删改代码行（`+42 -12`）。
 - **上下文 Token 常驻显示** —— 上下文 token 统计（`↑` 输入、`↓` 输出）在所有会话中全程常驻显示，初始为 `↑0 ↓0`。
 - **官方 OAuth 额度识别** —— 自动识别官方 OAuth 订阅，按标准周期显示 `5h`、`7d`、`1m` 等额度剩余与倒计时（如 `5h 76% · 2h 15m │ 7d 59%`），额度充足为绿、警戒为黄、见底为红。
 - **上下文用量进度条** —— 按阈值着色，65% 转黄、85% 转红。
 - **Git 状态** —— 显示当前分支（detached HEAD 时回退到短 SHA），并用 `✓` / `●` 标记工作区是否干净。
 - **花费 / 额度双模** —— API 密钥按 Token 计费显示 USD 金额，官方 OAuth 订阅显示周期额度。
+- **交互式 TUI 可视化配置** —— 终端可视化拖拽排序、模块开关及中英双语切换（`python statusline.py config`）。
 - **路径缩写** —— `$HOME` 折叠为 `~`，过深的路径折叠为 `…/最后/三级/目录`。
 - **Subagent 逐行显示** —— 每个运行中的 subagent 单独一行，全面兼容 Antigravity CLI 的 `role`、`prompt` 及 Claude Code 的子任务。
 - **零依赖** —— 只用 Python 3 标准库。无需安装、无需虚拟环境、无需构建。
@@ -227,9 +228,13 @@ python statusline.py subagent
 | --- | --- |
 | 模型 | `model.display_name` → `model.name` → `model.id` → CLI 默认值（`Gemini` / `Claude` / `Codex` / `Agent`） |
 | 状态 | `agent_state` → `state`（如 `Idle`、`Thinking`、`Auth`） |
+| 运行环境 | `VIRTUAL_ENV` / `CONDA_DEFAULT_ENV` 或当前项目环境标识（`.venv`、`pnpm-lock.yaml`、`go.mod` 等） |
+| Git 状态 | 当前分支与工作区状态（`✓` / `●`） |
+| Git 统计 | `git diff HEAD --shortstat` 增删改统计（`+X -Y`） |
 | 工作目录 | `workspace.current_dir` → `workspace.project_dir` → `cwd` |
 | 上下文 | `context_window.used_percentage` → `100 - context_window.remaining_percentage` |
 | Token | `context_window.total_input_tokens` → `context_window.input_tokens` → `input_tokens` → `tokens.input`，输出同理 |
+| 缓存命中 | `cache_read_input_tokens` → `tokens.cached` → `prompt_tokens_details.cached_tokens` |
 | 花费 | `cost.total_cost_usd` |
 | 额度 | `quota.remaining_fraction` / `quota.<model>.remaining_fraction`（支持 `reset_in_seconds` 或 `reset_time` 倒计时） |
 

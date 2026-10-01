@@ -12,14 +12,11 @@ A fast, dependency-free status line for [Claude Code](https://claude.com/claude-
 ![cc-status-line in a terminal: main session line and one line per running subagent](assets/preview.png)
 
 ```text
-# Claude Code session (with OAuth rate limits):
-Opus 5 │ main ✓ │ ctx ████░░░░░░ 42% │ ↑15.0k ↓3.2k │ 5h 76% · 2h 15m │ 7d 59% │ ~/Codes/my-project
-
-# Claude Code session (API key / token-billed):
-Opus 5 │ main ✓ │ ctx ████░░░░░░ 42% │ ↑15.0k ↓3.2k │ $0.37 │ ~/Codes/my-project
+# Claude Code session (with cache, git diff, and OAuth rate limits):
+Opus 5 │ Idle │ (.venv) │ main ● │ +42 -12 │ ctx ████░░░░░░ 42% │ ↑15.0k ↓3.2k │ ⚡cache 80% (12.0k) │ 5h 76% · 2h 15m │ ~/Codes/my-project
 
 # Antigravity CLI session (with official Google OAuth quota):
-Gemini 2.5 Pro │ Idle │ main ✓ │ ctx ████░░░░░░ 42% │ ↑85.0k ↓15.0k │ 5h 80% · 1h │ 7d 94% · 6d │ ~/Codes/my-project
+Gemini 2.5 Pro │ Idle │ pnpm │ main ✓ │ ctx ████░░░░░░ 42% │ ↑85.0k ↓15.0k │ ⚡cache 71% (60.0k) │ 5h 80% · 1h │ 7d 94% · 6d │ ~/Codes/my-project
 
 # OpenAI Codex CLI / GPT session:
 GPT-4o │ main ✓ │ ctx ███░░░░░░░ 26% │ ↑12.0k ↓3.5k │ 5h 85% · 3h │ ~/Codes/my-project
@@ -45,11 +42,15 @@ Either stage degrades cleanly: a segment whose data is missing is omitted rather
 ### Features
 
 - **Multi-CLI compatibility** — seamless support for Claude Code, Antigravity CLI (`agy`), OpenAI Codex CLI (`codex`), and generic AI coding assistants with automatic CLI detection.
+- **Prompt cache hit rate** — automatically detects and displays prompt cache hits and savings (`⚡cache 80% (12.0k)`).
+- **Virtual environment & runtime detection** — automatically detects active environments (Python `.venv`/`conda`, Node `pnpm`/`bun`/`yarn`/`.nvmrc`, Go `go.mod`, Rust `cargo`/`rust-toolchain`, etc.).
+- **Git diff stat** — real-time additions and deletions (`+42 -12`) alongside branch status.
 - **Always-on context tokens** — context token usage (`↑` input and `↓` output) is always visible across all sessions.
 - **Official OAuth quota detection** — automatically detects official OAuth subscriptions and displays standard buckets (`5h`, `7d`, `1m`) with remaining percentage and reset countdown (e.g. `5h 76% · 2h 15m │ 7d 59%`).
 - **Context usage bar** — color-coded green / yellow / red at 65% and 85% thresholds.
 - **Git state** — current branch (falls back to short SHA on detached HEAD) with a `✓` / `●` clean-or-dirty marker.
 - **Session cost / Quota** — total USD for API token-billed sessions, or official OAuth quotas for subscription sessions.
+- **Interactive TUI configuration** — visual module reordering, toggling, and bilingual switching via `python statusline.py config`.
 - **Shortened workspace path** — `$HOME` collapses to `~`, deep paths to `…/last/three/segments`.
 - **Per-subagent lines** — each running subagent gets its own line with model, role/type, context usage and task description, fully compatible with Antigravity subagents and Claude Code.
 - **Zero dependencies** — Python 3 standard library only. No install step, no virtualenv, no build.
@@ -227,9 +228,13 @@ The renderer reads defensively and tolerates missing keys — each field below i
 | --- | --- |
 | Model | `model.display_name` → `model.name` → `model.id` → CLI default (`Gemini` / `Claude` / `Codex` / `Agent`) |
 | State | `agent_state` → `state` (e.g., `Idle`, `Thinking`, `Auth`) |
+| Env | `VIRTUAL_ENV` / `CONDA_DEFAULT_ENV` or project files (`.venv`, `pnpm-lock.yaml`, `go.mod`, etc.) |
+| Git | Current branch with `✓` / `●` |
+| Git Stat | `git diff HEAD --shortstat` (`+X -Y`) |
 | Workspace | `workspace.current_dir` → `workspace.project_dir` → `cwd` |
 | Context | `context_window.used_percentage` → `100 - context_window.remaining_percentage` |
 | Tokens | `context_window.total_input_tokens` → `context_window.input_tokens` → `input_tokens` → `tokens.input`, same for output |
+| Cache | `cache_read_input_tokens` → `tokens.cached` → `prompt_tokens_details.cached_tokens` |
 | Cost | `cost.total_cost_usd` |
 | Quota | `quota.remaining_fraction` / `quota.<model>.remaining_fraction` (with `reset_in_seconds` or `reset_time` countdown) |
 

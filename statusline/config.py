@@ -5,15 +5,18 @@ import os
 import sys
 from pathlib import Path
 
-from .colors import BOLD, CYAN, BLUE, GREEN, GRAY, YELLOW, RED, RESET
+from .colors import BOLD, CYAN, BLUE, GREEN, GRAY, YELLOW, RED, PURPLE, RESET
 from .common import context_color, progress_bar, short_path
 
 DEFAULT_ORDER = [
     "model",
     "state",
+    "env",
     "git",
+    "git_stat",
     "context",
     "tokens",
+    "cache",
     "quota",
     "cost",
     "cwd",
@@ -25,9 +28,12 @@ DEFAULT_CONFIG = {
     "modules": {
         "model": True,
         "state": True,
+        "env": True,
         "git": True,
+        "git_stat": True,
         "context": True,
         "tokens": True,
+        "cache": True,
         "quota": True,
         "cost": True,
         "cwd": True,
@@ -43,9 +49,17 @@ MODULE_META = {
         "en": "Agent State (Idle / Running)",
         "zh": "运行状态 (就绪 / 运行中)",
     },
+    "env": {
+        "en": "Virtual Env & Runtime (.venv / node / go)",
+        "zh": "虚拟环境与运行时 (.venv / node / go)",
+    },
     "git": {
         "en": "Git Branch & Status (✓/●)",
         "zh": "Git 分支与状态 (✓/●)",
+    },
+    "git_stat": {
+        "en": "Git Diff Stat (+add -del)",
+        "zh": "Git 增删统计 (+改动 -删除)",
     },
     "context": {
         "en": "Context Usage Bar (%)",
@@ -54,6 +68,10 @@ MODULE_META = {
     "tokens": {
         "en": "Token Counter (↑in ↓out)",
         "zh": "Token 计数 (↑输入 ↓输出)",
+    },
+    "cache": {
+        "en": "Prompt Cache Hit Rate (⚡%)",
+        "zh": "Prompt 缓存命中率 (⚡%)",
     },
     "quota": {
         "en": "OAuth Quota (5h / 7d)",
@@ -75,12 +93,14 @@ I18N = {
         "running": "Running",
         "thinking": "Thinking",
         "ctx": "ctx",
+        "cache": "cache",
     },
     "zh": {
         "idle": "就绪",
         "running": "运行中",
         "thinking": "思考中",
         "ctx": "上下文",
+        "cache": "缓存",
     },
 }
 
@@ -114,7 +134,13 @@ def load_config():
                 valid_order = [x for x in data["order"] if x in DEFAULT_ORDER]
                 for x in DEFAULT_ORDER:
                     if x not in valid_order:
-                        valid_order.append(x)
+                        def_idx = DEFAULT_ORDER.index(x)
+                        insert_at = len(valid_order)
+                        for prev_item in reversed(DEFAULT_ORDER[:def_idx]):
+                            if prev_item in valid_order:
+                                insert_at = valid_order.index(prev_item) + 1
+                                break
+                        valid_order.insert(insert_at, x)
                 cfg["order"] = valid_order
 
             if isinstance(data.get("modules"), dict):
@@ -150,13 +176,17 @@ def render_preview(cfg):
 
     state_str = I18N[lang]["idle"]
     ctx_label = I18N[lang]["ctx"]
+    cache_label = I18N[lang]["cache"]
 
     sample_parts = {
         "model": f"{BOLD}{CYAN}Opus 5{RESET}",
         "state": f"{GRAY}{state_str}{RESET}",
-        "git": f"{GREEN}main ✓{RESET}",
+        "env": f"{PURPLE}(.venv){RESET}",
+        "git": f"{GREEN}main ●{RESET}",
+        "git_stat": f"{GREEN}+42{RESET} {RED}-12{RESET}",
         "context": f"{ctx_label} {progress_bar(42)} {context_color(42)}42%{RESET}",
         "tokens": f"{BLUE}↑15.0k ↓3.2k{RESET}",
+        "cache": f"{CYAN}⚡{cache_label} 82% (12.4k){RESET}",
         "quota": f"{GREEN}5h 76% · 2h 15m{RESET}",
         "cost": f"{GREEN}$0.37{RESET}",
         "cwd": f"{GRAY}~/Codes/project{RESET}",

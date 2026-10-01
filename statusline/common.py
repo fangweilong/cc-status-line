@@ -1,12 +1,13 @@
 import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 import time
 from pathlib import Path
 
-from .colors import GREEN, YELLOW, RED, GRAY, RESET
+from .colors import GREEN, YELLOW, RED, GRAY, PURPLE, RESET
 
 
 def read_json_stdin():
@@ -69,6 +70,146 @@ def git_info(cwd):
     )
 
     return f"{branch} {marker}"
+
+
+def git_diff_stat(cwd):
+    """返回 Git 增删行统计（如 +12 -4），无改动或异常时返回空字符串。"""
+    if not cwd:
+        return ""
+
+    out = git_command(["diff", "HEAD", "--shortstat"], cwd)
+    if not out:
+        out = git_command(["diff", "--shortstat"], cwd)
+
+    if not out:
+        return ""
+
+    ins = 0
+    dels = 0
+    m_ins = re.search(r"(\d+)\s+insertion", out)
+    if m_ins:
+        ins = int(m_ins.group(1))
+    m_del = re.search(r"(\d+)\s+deletion", out)
+    if m_del:
+        dels = int(m_del.group(1))
+
+    if ins == 0 and dels == 0:
+        return ""
+
+    parts = []
+    if ins > 0:
+        parts.append(f"{GREEN}+{ins}{RESET}")
+    if dels > 0:
+        parts.append(f"{RED}-{dels}{RESET}")
+
+    return " ".join(parts)
+
+
+def detect_env(cwd):
+    """检测当前激活的虚拟环境与项目运行时（支持 Python, Node, Go, Rust, Java 等）。"""
+    # 优先检测当前进程环境变量（真实激活的运行时环境）
+    venv = os.environ.get("VIRTUAL_ENV")
+    if venv:
+        return f"({Path(venv).name})"
+
+    conda = os.environ.get("CONDA_DEFAULT_ENV")
+    if conda:
+        return f"conda:{conda}"
+
+    if os.environ.get("REMOTE_CONTAINERS") or os.environ.get("CODESPACES"):
+        return "devcontainer"
+    if os.environ.get("WSL_DISTRO_NAME"):
+        return "wsl"
+
+    if not cwd:
+        return ""
+
+    try:
+        p = Path(cwd)
+        # 检测工作区根目录的 Python 虚拟环境
+        for venv_name in (".venv", "venv", "env"):
+            if (p / venv_name).is_dir():
+                return f"({venv_name})"
+
+        # 检测 Node.js 运行时与包管理器
+        for node_ver_file in (".nvmrc", ".node-version"):
+            nv = p / node_ver_file
+            if nv.is_file():
+                try:
+                    ver = nv.read_text(encoding="utf-8", errors="replace").strip()
+                    if ver:
+                        if not ver.startswith("v") and not ver.startswith("node"):
+                            ver = f"v{ver}"
+                        return f"node:{ver}"
+                except Exception:
+                    pass
+
+        if (p / "bun.lockb").is_file() or (p / "bun.lock").is_file():
+            return "bun"
+        if (p / "pnpm-lock.yaml").is_file():
+            return "pnpm"
+        if (p / "yarn.lock").is_file():
+            return "yarn"
+        if (p / "package-lock.json").is_file():
+            return "npm"
+        if (p / "package.json").is_file():
+            return "node"
+
+        # 检测 Rust
+        if (p / "Cargo.toml").is_file():
+            for tc_file in ("rust-toolchain.toml", "rust-toolchain"):
+                tc = p / tc_file
+                if tc.is_file():
+                    try:
+                        content = tc.read_text(encoding="utf-8", errors="replace")
+                        m = re.search(r'channel\s*=\s*["\']([^"\']+)["\']', content)
+                        if m:
+                            return f"rust:{m.group(1)}"
+                        lines = [line.strip() for line in content.splitlines() if line.strip() and not line.strip().startswith("#")]
+                        if lines:
+                            return f"rust:{lines[0]}"
+                    except Exception:
+                        pass
+            return "cargo"
+
+        # 检测 Go
+        go_mod = p / "go.mod"
+        if go_mod.is_file():
+            try:
+                content = go_mod.read_text(encoding="utf-8", errors="replace")
+                m = re.search(r"^go\s+([0-9.]+)", content, re.MULTILINE)
+                if m:
+                    return f"go:{m.group(1)}"
+            except Exception:
+                pass
+            return "go"
+
+        # 检测 Java
+        if (p / "pom.xml").is_file():
+            return "maven"
+        if (p / "build.gradle").is_file() or (p / "build.gradle.kts").is_file():
+            return "gradle"
+
+        # 检测 Ruby
+        for rb_file in (".ruby-version", "Gemfile"):
+            if (p / rb_file).is_file():
+                if rb_file == ".ruby-version":
+                    try:
+                        ver = (p / rb_file).read_text(encoding="utf-8", errors="replace").strip()
+                        if ver:
+                            return f"ruby:{ver}"
+                    except Exception:
+                        pass
+                return "ruby"
+
+        # 检测 Python 项目文件（未建立虚拟环境时）
+        if (p / "pyproject.toml").is_file() or (p / "requirements.txt").is_file():
+            return "python"
+
+    except Exception:
+        pass
+
+    return ""
 
 
 def short_path(path):
@@ -287,7 +428,7 @@ def load_session_context(session_key, max_age_seconds=86400):
     return None
 
 
-def save_session_context(session_key, used, input_tokens, output_tokens, cost=None):
+def save_session_context(session_key, used, input_tokens, output_tokens, cost=None, cache_read=None):
     """保存当前会话有效的上下文与 Token 统计。"""
     if not session_key:
         return
@@ -304,6 +445,7 @@ def save_session_context(session_key, used, input_tokens, output_tokens, cost=No
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "cost": cost,
+            "cache_read": cache_read,
             "time": time.time(),
         }
 

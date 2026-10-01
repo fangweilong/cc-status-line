@@ -3,6 +3,8 @@ import os
 from .common import (
     read_json_stdin,
     git_info,
+    git_diff_stat,
+    detect_env,
     short_path,
     fmt_tokens,
     context_color,
@@ -22,6 +24,7 @@ from .colors import (
     GREEN,
     GRAY,
     YELLOW,
+    PURPLE,
     RESET,
 )
 from .config import load_config, DEFAULT_ORDER, I18N
@@ -79,6 +82,19 @@ def render_main(cli=None):
         or 0
     )
 
+    cache_read = (
+        context.get("cache_read_input_tokens")
+        or context.get("cache_read_tokens")
+        or data.get("cache_read_input_tokens")
+        or get_nested(data, ("tokens", "cache_read"))
+        or get_nested(data, ("usage", "cache_read_input_tokens"))
+        or get_nested(data, ("usage", "prompt_tokens_details", "cached_tokens"))
+        or get_nested(data, ("tokens", "cached"))
+        or data.get("cached_content_token_count")
+        or 0
+    )
+    cache_read = num(cache_read, 0)
+
     session_key = (
         data.get("session_id")
         or data.get("sessionId")
@@ -100,6 +116,7 @@ def render_main(cli=None):
         + num(get_nested(data, ("tokens", "output")), 0)
         + num(get_nested(data, ("usage", "input_tokens")), 0)
         + num(get_nested(data, ("usage", "output_tokens")), 0)
+        + cache_read
     )
     raw_has_tokens = raw_token_count > 0
 
@@ -108,6 +125,8 @@ def render_main(cli=None):
             input_tokens = cached["input_tokens"]
         if num(output_tokens, 0) == 0 and cached.get("output_tokens"):
             output_tokens = cached["output_tokens"]
+        if cache_read == 0 and cached.get("cache_read"):
+            cache_read = num(cached["cache_read"], 0)
         if used == 0 and cached.get("used"):
             used = num(cached["used"], 0)
         if total_cost is None and cached.get("cost") is not None:
@@ -120,6 +139,7 @@ def render_main(cli=None):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost=total_cost,
+            cache_read=cache_read,
         )
 
     state_lower = str(agent_state).lower()
@@ -168,9 +188,17 @@ def render_main(cli=None):
 
         module_parts["state"] = f"{state_color}{state_display}{RESET}"
 
+    env_name = detect_env(cwd)
+    if env_name:
+        module_parts["env"] = f"{PURPLE}{env_name}{RESET}"
+
     git = git_info(cwd)
     if git:
         module_parts["git"] = f"{GREEN}{git}{RESET}"
+
+    git_stat = git_diff_stat(cwd)
+    if git_stat:
+        module_parts["git_stat"] = git_stat
 
     ctx_label = I18N.get(lang, {}).get("ctx", "ctx")
     module_parts["context"] = (
@@ -188,6 +216,16 @@ def render_main(cli=None):
         f"↓{fmt_tokens(output_tokens)}{token_suffix}"
         f"{RESET}"
     )
+
+    if cache_read > 0:
+        total_prompt = max(num(input_tokens, 0), cache_read)
+        cache_label = I18N.get(lang, {}).get("cache", "cache")
+        if total_prompt > 0:
+            cache_pct = round((cache_read / total_prompt) * 100)
+            cache_pct = max(0, min(100, cache_pct))
+            module_parts["cache"] = f"{CYAN}⚡{cache_label} {cache_pct}% ({fmt_tokens(cache_read)}){RESET}"
+        else:
+            module_parts["cache"] = f"{CYAN}⚡{cache_label} {fmt_tokens(cache_read)}{RESET}"
 
     if quota_parts:
         module_parts["quota"] = " │ ".join(quota_parts)
