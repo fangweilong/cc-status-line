@@ -11,6 +11,7 @@ Modes:
 
 import sys
 
+from statusline import __version__
 from statusline.colors import BOLD, GRAY, RED, RESET, YELLOW
 from statusline.common import read_json_stdin
 from statusline.config import run_tui
@@ -29,6 +30,7 @@ MODES = (
     "codex",
     "config",
     "tui",
+    "version",
 )
 
 
@@ -81,6 +83,10 @@ def parse_args(argv):
 
 def main():
     """Execute statusline CLI according to parsed arguments and stdin payload."""
+    if any(arg in sys.argv[1:] for arg in ("--version", "-v", "version")):
+        print(f"cc-status-line {__version__}")
+        return 0
+
     mode, cli = parse_args(sys.argv)
 
     if mode is not None and mode not in MODES:
