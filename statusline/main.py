@@ -1,5 +1,17 @@
+"""Main status line rendering logic."""
+
 import os
 
+from .colors import (
+    BOLD,
+    CYAN,
+    BLUE,
+    GREEN,
+    GRAY,
+    YELLOW,
+    PURPLE,
+    RESET,
+)
 from .common import (
     read_json_stdin,
     git_info,
@@ -16,22 +28,13 @@ from .common import (
     load_session_context,
     save_session_context,
 )
-
-from .colors import (
-    BOLD,
-    CYAN,
-    BLUE,
-    GREEN,
-    GRAY,
-    YELLOW,
-    PURPLE,
-    RESET,
-)
 from .config import load_config, DEFAULT_ORDER, I18N
 from .quota import render_quota_parts
+from .subagent import format_subagent_line
 
 
 def render_main(data=None, cli=None):
+    """Render main status line according to configuration and input data."""
     if data is None:
         data = read_json_stdin()
     active_cli = detect_cli(data, explicit_cli=cli)
@@ -68,6 +71,7 @@ def render_main(data=None, cli=None):
     input_tokens = (
         context.get("total_input_tokens")
         or context.get("input_tokens")
+        or get_nested(context, ("current_usage", "input_tokens"))
         or data.get("input_tokens")
         or get_nested(data, ("tokens", "input"))
         or get_nested(data, ("usage", "input_tokens"))
@@ -77,6 +81,7 @@ def render_main(data=None, cli=None):
     output_tokens = (
         context.get("total_output_tokens")
         or context.get("output_tokens")
+        or get_nested(context, ("current_usage", "output_tokens"))
         or data.get("output_tokens")
         or get_nested(data, ("tokens", "output"))
         or get_nested(data, ("usage", "output_tokens"))
@@ -86,6 +91,7 @@ def render_main(data=None, cli=None):
     cache_read = (
         context.get("cache_read_input_tokens")
         or context.get("cache_read_tokens")
+        or get_nested(context, ("current_usage", "cache_read_input_tokens"))
         or data.get("cache_read_input_tokens")
         or get_nested(data, ("tokens", "cache_read"))
         or get_nested(data, ("usage", "cache_read_input_tokens"))
@@ -109,8 +115,10 @@ def render_main(data=None, cli=None):
     raw_token_count = (
         num(context.get("total_input_tokens"), 0)
         + num(context.get("input_tokens"), 0)
+        + num(get_nested(context, ("current_usage", "input_tokens")), 0)
         + num(context.get("total_output_tokens"), 0)
         + num(context.get("output_tokens"), 0)
+        + num(get_nested(context, ("current_usage", "output_tokens")), 0)
         + num(data.get("input_tokens"), 0)
         + num(data.get("output_tokens"), 0)
         + num(get_nested(data, ("tokens", "input")), 0)
@@ -219,7 +227,11 @@ def render_main(data=None, cli=None):
     )
 
     if cache_read > 0:
-        total_prompt = max(num(input_tokens, 0), cache_read)
+        current_input = (
+            get_nested(context, ("current_usage", "input_tokens"))
+            or num(input_tokens, 0)
+        )
+        total_prompt = max(num(input_tokens, 0), current_input + cache_read, cache_read)
         cache_label = I18N.get(lang, {}).get("cache", "cache")
         if total_prompt > 0:
             cache_pct = round((cache_read / total_prompt) * 100)
@@ -250,3 +262,23 @@ def render_main(data=None, cli=None):
         " │ ".join(parts),
         flush=True,
     )
+
+    subagents = (
+        data.get("subagents")
+        or get_nested(data, ("subagent_info", "subagents"))
+        or get_nested(data, ("subagentInfo", "subagents"))
+        or []
+    )
+    if isinstance(subagents, dict):
+        subagents = list(subagents.values())
+
+    if subagents and modules_enabled.get("subagents", True):
+        sorted_subagents = sorted(
+            subagents,
+            key=lambda s: 0 if str(s.get("status", "")).lower() in ("running", "working", "in_progress") else 1
+        )
+        for sub in sorted_subagents[:3]:
+            if isinstance(sub, dict):
+                sub_line = format_subagent_line(sub, cli=active_cli, lang=lang)
+                if sub_line:
+                    print(sub_line, flush=True)

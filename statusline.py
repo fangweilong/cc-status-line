@@ -33,8 +33,10 @@ MODES = (
 
 
 def is_subagent_payload(data):
-    """检测输入数据是否属于 Subagent 任务列表结构。"""
+    """检测输入数据是否属于独立的 Subagent 任务列表结构（如 Claude Code 的 subagentStatusLine 钩子）。"""
     if not isinstance(data, dict):
+        return False
+    if any(k in data for k in ("context_window", "workspace", "quota", "product", "agent_state")):
         return False
     return any(
         k in data
@@ -78,6 +80,7 @@ def parse_args(argv):
 
 
 def main():
+    """Execute statusline CLI according to parsed arguments and stdin payload."""
     mode, cli = parse_args(sys.argv)
 
     if mode is not None and mode not in MODES:

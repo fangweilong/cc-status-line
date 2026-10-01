@@ -1,3 +1,5 @@
+"""Common utilities, formatting helpers, and environment detection."""
+
 import hashlib
 import json
 import os
@@ -39,6 +41,7 @@ def read_json_stdin():
 
 
 def git_command(args, cwd):
+    """Execute a git command in cwd and return stripped stdout."""
     if not cwd:
         return ""
 
@@ -55,6 +58,7 @@ def git_command(args, cwd):
 
 
 def git_info(cwd):
+    """Return current git branch and dirty status marker (✓ or ●)."""
     branch = git_command(
         ["branch", "--show-current"],
         cwd,
@@ -226,6 +230,7 @@ def detect_env(cwd):
 
 
 def short_path(path):
+    """Shorten a filesystem path for display, substituting ~ for home directory."""
     if not path:
         return ""
 
@@ -252,6 +257,7 @@ def short_path(path):
 
 
 def num(value, default=0.0):
+    """Safely cast value to float or return default."""
     try:
         return float(value)
     except Exception:
@@ -259,6 +265,7 @@ def num(value, default=0.0):
 
 
 def fmt_tokens(value):
+    """Format token count into human-readable string (e.g. 1.2k, 3.4M)."""
     if value is None:
         return "?"
 
@@ -277,6 +284,7 @@ def fmt_tokens(value):
 
 
 def context_color(percent):
+    """Return ANSI color code corresponding to context usage percentage."""
     percent = num(percent)
 
     if percent >= 85:
@@ -289,6 +297,7 @@ def context_color(percent):
 
 
 def progress_bar(percent, width=10):
+    """Render a colored ANSI progress bar for context percentage."""
     percent = max(
         0,
         min(100, num(percent)),
@@ -308,6 +317,7 @@ def progress_bar(percent, width=10):
 
 
 def get_nested(obj, *paths, default=None):
+    """Safely retrieve nested dictionary value using fallback key sequences."""
     for path in paths:
         current = obj
         ok = True
@@ -329,6 +339,7 @@ def get_nested(obj, *paths, default=None):
 
 
 def detect_cli(data=None, explicit_cli=None):
+    """Detect active CLI environment (antigravity, claude, codex, or generic)."""
     if explicit_cli:
         cli = explicit_cli.lower().strip()
         if cli in ("agy", "antigravity", "antigravitycli", "antigravity-cli"):
@@ -383,6 +394,7 @@ def detect_cli(data=None, explicit_cli=None):
 
 
 def model_name(data, cli=None):
+    """Extract and format model name from input payload."""
     model = data.get("model")
 
     if isinstance(model, dict):
@@ -408,12 +420,14 @@ def model_name(data, cli=None):
 
 
 def _session_cache_dir():
+    """Return Path to local statusline session cache directory."""
     d = Path(tempfile.gettempdir()) / "cc_statusline"
     try:
         d.mkdir(parents=True, exist_ok=True)
     except Exception:
         pass
     return d
+
 
 
 def load_session_context(session_key, max_age_seconds=86400):

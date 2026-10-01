@@ -1,25 +1,59 @@
+"""Subagent status line rendering for Claude Code and Antigravity CLI."""
+
 import json
 
+from .colors import BLUE, CYAN, GRAY, GREEN, RED, RESET
 from .common import (
-    read_json_stdin,
-    fmt_tokens,
-    num,
     context_color,
-    progress_bar,
-    get_nested,
     detect_cli,
+    fmt_tokens,
+    get_nested,
+    num,
+    progress_bar,
+    read_json_stdin,
 )
+from .config import load_config
 
-from .colors import (
-    CYAN,
-    BLUE,
-    GREEN,
-    GRAY,
-    RESET,
-)
+STATUS_I18N = {
+    "en": {
+        "completed": "done",
+        "done": "done",
+        "running": "running",
+        "working": "running",
+        "in_progress": "running",
+        "pending": "pending",
+        "failed": "failed",
+        "error": "error",
+        "idle": "idle",
+    },
+    "zh": {
+        "completed": "已完成",
+        "done": "已完成",
+        "running": "运行中",
+        "working": "运行中",
+        "in_progress": "进行中",
+        "pending": "等待中",
+        "failed": "失败",
+        "error": "错误",
+        "idle": "空闲",
+    },
+}
+
+STATUS_COLOR = {
+    "completed": GREEN,
+    "done": GREEN,
+    "running": CYAN,
+    "working": CYAN,
+    "in_progress": CYAN,
+    "pending": GRAY,
+    "failed": RED,
+    "error": RED,
+    "idle": GRAY,
+}
 
 
 def task_model(task, cli=None):
+    """Extract subagent model name from task dictionary."""
     model = task.get("model")
 
     if isinstance(model, dict):
@@ -41,6 +75,7 @@ def task_model(task, cli=None):
 
 
 def task_name(task):
+    """Extract subagent display name or role."""
     return (
         task.get("name")
         or task.get("role")
@@ -53,6 +88,7 @@ def task_name(task):
 
 
 def task_context(task):
+    """Extract subagent context window usage percentage."""
     context = task.get("context_window")
 
     if isinstance(context, dict):
@@ -72,6 +108,7 @@ def task_context(task):
 
 
 def task_tokens(task):
+    """Extract subagent token usage formatted string."""
     tokens = (
         task.get("tokenCount")
         or task.get("token_count")
@@ -108,7 +145,8 @@ def task_tokens(task):
 
 
 def task_content(task):
-    return (
+    """Extract subagent task description or prompt."""
+    content = (
         task.get("description")
         or task.get("prompt")
         or task.get("content")
@@ -116,12 +154,80 @@ def task_content(task):
         or task.get("title")
         or ""
     )
+    if not content and task.get("role") and task.get("name"):
+        content = task.get("role")
+    return content or ""
+
+
+def format_subagent_line(task, cli=None, lang="en"):
+    """Format a single subagent task dictionary into a styled statusline string."""
+    model = task_model(task, cli=cli)
+    name = task_name(task)
+
+    content = (
+        task_content(task)
+        .replace("\r", " ")
+        .replace("\n", " ")
+        .strip()
+    )
+
+    if len(content) > 70:
+        content = content[:67] + "..."
+
+    used = task_context(task)
+    tokens = task_tokens(task)
+    status = task.get("status")
+
+    pieces = [
+        f"{CYAN}↳ {model}{RESET}",
+        f"{GREEN}{name}{RESET}",
+    ]
+
+    if status:
+        status_key = str(status).strip().lower()
+        status_text = STATUS_I18N.get(lang, STATUS_I18N["en"]).get(status_key, status)
+        status_color = STATUS_COLOR.get(status_key, GRAY)
+        pieces.append(f"{status_color}{status_text}{RESET}")
+
+    if used is not None:
+        used = num(used, 0)
+        pieces.append(
+            f"ctx "
+            f"{progress_bar(used)} "
+            f"{context_color(used)}"
+            f"{used:.0f}%"
+            f"{RESET}"
+        )
+
+    if tokens:
+        token_display = (
+            tokens
+            if (tokens.startswith("↑") or tokens.startswith("↓"))
+            else f"↓{tokens}"
+        )
+        pieces.append(
+            f"{BLUE}"
+            f"{token_display}"
+            f"{RESET}"
+        )
+
+    if content:
+        pieces.append(
+            f"{GRAY}"
+            f"{content}"
+            f"{RESET}"
+        )
+
+    return " │ ".join(pieces)
 
 
 def render_subagent(data=None, cli=None):
+    """Render subagent lines from payload (JSON for Claude Code, ANSI for Antigravity)."""
     if data is None:
         data = read_json_stdin()
     active_cli = detect_cli(data, explicit_cli=cli)
+    cfg = load_config()
+    lang = cfg.get("language", "en")
 
     tasks = (
         data.get("tasks")
@@ -146,68 +252,18 @@ def render_subagent(data=None, cli=None):
             or task_name(task)
         )
 
-        model = task_model(task, cli=active_cli)
-        name = task_name(task)
+        content_out = format_subagent_line(task, cli=active_cli, lang=lang)
 
-        content = (
-            task_content(task)
-            .replace("\r", " ")
-            .replace("\n", " ")
-            .strip()
-        )
-
-        if len(content) > 70:
-            content = content[:67] + "..."
-
-        used = task_context(task)
-        tokens = task_tokens(task)
-
-        pieces = [
-            f"{CYAN}↳ {model}{RESET}",
-            f"{GREEN}{name}{RESET}",
-        ]
-
-        if used is not None:
-            used = num(used, 0)
-
-            pieces.append(
-                f"ctx "
-                f"{progress_bar(used)} "
-                f"{context_color(used)}"
-                f"{used:.0f}%"
-                f"{RESET}"
+        if active_cli == "antigravity":
+            print(content_out, flush=True)
+        else:
+            print(
+                json.dumps(
+                    {
+                        "id": task_id,
+                        "content": content_out,
+                    },
+                    ensure_ascii=False,
+                ),
+                flush=True,
             )
-
-        if tokens:
-            token_display = (
-                tokens
-                if (tokens.startswith("↑") or tokens.startswith("↓"))
-                else f"↓{tokens}"
-            )
-            pieces.append(
-                f"{BLUE}"
-                f"{token_display}"
-                f"{RESET}"
-            )
-
-        if content:
-            pieces.append(
-                f"{GRAY}"
-                f"{content}"
-                f"{RESET}"
-            )
-
-        content_out = (
-            " │ ".join(pieces)
-        )
-
-        print(
-            json.dumps(
-                {
-                    "id": task_id,
-                    "content": content_out,
-                },
-                ensure_ascii=False,
-            ),
-            flush=True,
-        )
