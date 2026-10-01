@@ -92,17 +92,17 @@ The repository includes [AGENTS.md](AGENTS.md) as the standard universal guide f
    {
      "statusLine": {
        "type": "command",
-       "command": "python /absolute/path/to/cc-status-line/statusline.py main",
+       "command": "python /absolute/path/to/cc-status-line/statusline.py",
        "padding": 0
      },
      "subagentStatusLine": {
        "type": "command",
-       "command": "python /absolute/path/to/cc-status-line/statusline.py subagent"
+       "command": "python /absolute/path/to/cc-status-line/statusline.py"
      }
    }
    ```
 
-   See [examples/settings.json](examples/settings.json).
+   See [examples/settings.json](examples/settings.json). *(Note: `statusline.py` automatically detects main vs subagent modes from the incoming payload; appending `main` or `subagent` is optional).*
 
    #### Option B: Antigravity CLI (`~/.gemini/antigravity-cli/settings.json`)
 
@@ -110,7 +110,7 @@ The repository includes [AGENTS.md](AGENTS.md) as the standard universal guide f
    {
      "statusLine": {
        "type": "command",
-       "command": "python /absolute/path/to/cc-status-line/statusline.py main",
+       "command": "python /absolute/path/to/cc-status-line/statusline.py",
        "enabled": true,
        "padding": 0,
        "stack_with_default": false
@@ -118,7 +118,7 @@ The repository includes [AGENTS.md](AGENTS.md) as the standard universal guide f
    }
    ```
 
-   See [examples/antigravity-settings.json](examples/antigravity-settings.json). You can also run `/statusline python /path/to/statusline.py main` inside `agy`.
+   See [examples/antigravity-settings.json](examples/antigravity-settings.json). You can also run `/statusline python /path/to/statusline.py` inside `agy`.
 
    #### Option C: OpenAI Codex CLI (`~/.codex/config.toml`)
 

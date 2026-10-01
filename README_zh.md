@@ -92,17 +92,17 @@ subagent 状态行是分阶段拼出来的。下面两张截图是同一个 agen
    {
      "statusLine": {
        "type": "command",
-       "command": "python /absolute/path/to/cc-status-line/statusline.py main",
+       "command": "python /absolute/path/to/cc-status-line/statusline.py",
        "padding": 0
      },
      "subagentStatusLine": {
        "type": "command",
-       "command": "python /absolute/path/to/cc-status-line/statusline.py subagent"
+       "command": "python /absolute/path/to/cc-status-line/statusline.py"
      }
    }
    ```
 
-   可参考 [examples/settings.json](examples/settings.json)。
+   可参考 [examples/settings.json](examples/settings.json)。（注：`statusline.py` 会根据输入 payload 结构自动识别主状态栏与子任务状态栏，命令末尾显式追加 `main` 或 `subagent` 亦完全兼容）。
 
    #### 配置方式 2：Antigravity CLI（`~/.gemini/antigravity-cli/settings.json`）
 
@@ -110,7 +110,7 @@ subagent 状态行是分阶段拼出来的。下面两张截图是同一个 agen
    {
      "statusLine": {
        "type": "command",
-       "command": "python /absolute/path/to/cc-status-line/statusline.py main",
+       "command": "python /absolute/path/to/cc-status-line/statusline.py",
        "enabled": true,
        "padding": 0,
        "stack_with_default": false
@@ -118,7 +118,7 @@ subagent 状态行是分阶段拼出来的。下面两张截图是同一个 agen
    }
    ```
 
-   可参考 [examples/antigravity-settings.json](examples/antigravity-settings.json)。亦可在 `agy` 交互界面中直接执行 `/statusline python /path/to/statusline.py main`。
+   可参考 [examples/antigravity-settings.json](examples/antigravity-settings.json)。亦可在 `agy` 交互界面中直接执行 `/statusline python /path/to/statusline.py`。
 
    #### 配置方式 3：OpenAI Codex CLI（`~/.codex/config.toml`）
 

@@ -28,16 +28,16 @@ When the user asks you to configure or install `cc-status-line`, identify the us
      {
        "statusLine": {
          "type": "command",
-         "command": "python <ABSOLUTE_PATH>/statusline.py main",
+         "command": "python <ABSOLUTE_PATH>/statusline.py",
          "padding": 0
        },
        "subagentStatusLine": {
          "type": "command",
-         "command": "python <ABSOLUTE_PATH>/statusline.py subagent"
+         "command": "python <ABSOLUTE_PATH>/statusline.py"
        }
      }
      ```
-  4. Ensure `main` and `subagent` parameters are explicitly present at the end of each command.
+  4. Note: Specifying `main` and `subagent` explicitly (e.g. `statusline.py main` and `statusline.py subagent`) is fully supported, but optional because `statusline.py` automatically detects the mode based on payload structure.
 
 ### Target B: Antigravity CLI (`agy`)
 - **Config file**: `~/.gemini/antigravity-cli/settings.json`
@@ -49,14 +49,14 @@ When the user asks you to configure or install `cc-status-line`, identify the us
      {
        "statusLine": {
          "type": "command",
-         "command": "python <ABSOLUTE_PATH>/statusline.py main",
+         "command": "python <ABSOLUTE_PATH>/statusline.py",
          "enabled": true,
          "padding": 0,
          "stack_with_default": false
        }
      }
      ```
-  4. Alternatively, execute inside `agy`: `/statusline python <ABSOLUTE_PATH>/statusline.py main`.
+  4. Alternatively, execute inside `agy`: `/statusline python <ABSOLUTE_PATH>/statusline.py`.
 
 ### Target C: OpenAI Codex CLI (`codex`)
 - **Config file**: `~/.codex/config.toml` (or `$CODEX_HOME/config.toml`)

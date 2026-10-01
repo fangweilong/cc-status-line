@@ -3,6 +3,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -11,18 +12,30 @@ from .colors import GREEN, YELLOW, RED, GRAY, PURPLE, RESET
 
 
 def read_json_stdin():
+    """读取并解析 stdin 传入的 JSON 数据。
+
+    终端直接交互执行（无管道）时回退到当前工作目录，避免键盘阻塞。
+    """
     try:
+        if sys.stdin.isatty():
+            return {"cwd": os.getcwd()}
+
         raw = os.read(0, 8 * 1024 * 1024)
 
         if not raw:
-            return {}
+            return {"cwd": os.getcwd()}
 
-        return json.loads(
+        parsed = json.loads(
             raw.decode("utf-8", errors="replace")
         )
+        if isinstance(parsed, dict):
+            if "cwd" not in parsed and "workspace" not in parsed:
+                parsed["cwd"] = os.getcwd()
+            return parsed
+        return {}
 
     except Exception:
-        return {}
+        return {"cwd": os.getcwd()}
 
 
 def git_command(args, cwd):

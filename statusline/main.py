@@ -31,8 +31,9 @@ from .config import load_config, DEFAULT_ORDER, I18N
 from .quota import render_quota_parts
 
 
-def render_main(cli=None):
-    data = read_json_stdin()
+def render_main(data=None, cli=None):
+    if data is None:
+        data = read_json_stdin()
     active_cli = detect_cli(data, explicit_cli=cli)
 
     workspace = data.get("workspace") or {}

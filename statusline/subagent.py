@@ -118,8 +118,9 @@ def task_content(task):
     )
 
 
-def render_subagent(cli=None):
-    data = read_json_stdin()
+def render_subagent(data=None, cli=None):
+    if data is None:
+        data = read_json_stdin()
     active_cli = detect_cli(data, explicit_cli=cli)
 
     tasks = (
