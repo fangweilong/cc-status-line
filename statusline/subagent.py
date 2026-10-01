@@ -51,6 +51,20 @@ STATUS_COLOR = {
     "idle": GRAY,
 }
 
+FINISHED_STATUSES = {
+    "completed",
+    "done",
+    "finished",
+    "success",
+    "failed",
+    "error",
+    "errored",
+    "cancelled",
+    "canceled",
+    "killed",
+    "terminated",
+}
+
 
 def task_model(task, cli=None):
     """Extract subagent model name from task dictionary."""
@@ -255,6 +269,9 @@ def render_subagent(data=None, cli=None):
         content_out = format_subagent_line(task, cli=active_cli, lang=lang)
 
         if active_cli == "antigravity":
+            status_val = str(task.get("status") or task.get("state") or "").strip().lower()
+            if status_val in FINISHED_STATUSES:
+                continue
             print(content_out, flush=True)
         else:
             print(

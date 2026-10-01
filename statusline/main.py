@@ -30,7 +30,7 @@ from .common import (
 )
 from .config import load_config, DEFAULT_ORDER, I18N
 from .quota import render_quota_parts
-from .subagent import format_subagent_line
+from .subagent import format_subagent_line, FINISHED_STATUSES
 
 
 def render_main(data=None, cli=None):
@@ -273,12 +273,14 @@ def render_main(data=None, cli=None):
         subagents = list(subagents.values())
 
     if subagents and modules_enabled.get("subagents", True):
-        sorted_subagents = sorted(
-            subagents,
-            key=lambda s: 0 if str(s.get("status", "")).lower() in ("running", "working", "in_progress") else 1
-        )
-        for sub in sorted_subagents[:3]:
-            if isinstance(sub, dict):
-                sub_line = format_subagent_line(sub, cli=active_cli, lang=lang)
-                if sub_line:
-                    print(sub_line, flush=True)
+        active_subagents = [
+            sub
+            for sub in subagents
+            if isinstance(sub, dict)
+            and str(sub.get("status") or sub.get("state") or "").strip().lower()
+            not in FINISHED_STATUSES
+        ]
+        for sub in active_subagents[:3]:
+            sub_line = format_subagent_line(sub, cli=active_cli, lang=lang)
+            if sub_line:
+                print(sub_line, flush=True)
