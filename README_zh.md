@@ -182,6 +182,47 @@ python statusline.py config
 python statusline.py subagent
 ```
 
+### 可视化 TUI 配置向导
+
+无需手动编辑 JSON，在终端中直观调整模块开关、前后顺序和语言：
+
+```bash
+python statusline.py config
+
+# 或使用单体可执行文件：
+statusline config
+```
+
+配置文件自动保存于 `~/.config/cc-status-line/config.json`。
+
+| 按键 | 功能 |
+| --- | --- |
+| `↑` / `↓` | 在模块列表中上下移动光标 |
+| `空格` (Space) | 开启或关闭当前模块 (`[x]` / `[ ]`) |
+| `+` / `-` (或 `K` / `J`) | 调整模块显示的前后顺序 |
+| `L` / `Tab` | 切换界面语言（中文 / English） |
+| `回车` (Enter) | 保存并立即生效配置 |
+| `Q` / `Esc` | 放弃修改直接退出 |
+
+#### 11 个内置可配置模块清单
+
+| 模块标识 | 模块名称与说明 | 默认状态 | 说明 |
+| --- | --- | --- | --- |
+| `model` | 模型标识（如 `Opus 5`、`Gemini 2.5 Pro`） | 开启 | 默认首位展示 |
+| `state` | 运行状态（`就绪` / `运行中` / `思考中` / `Auth`） | 开启 | 依状态着色青/黄/灰 |
+| `env` | 虚拟环境与运行时识别 | 开启 | 识别 Python `.venv`/`conda`、Node `pnpm`/`bun`、Go、Rust 等 |
+| `git` | Git 分支与状态（`main ✓` / `main ●`） | 开启 | detached HEAD 时回退至短 SHA |
+| `git_stat` | Git 增删改代码行统计（`+42 -12`） | 开启 | 实时统计未提交的修改，无改动自动省略 |
+| `context` | 上下文用量进度条与百分比 | 开启 | 65% 转黄、85% 转红 |
+| `tokens` | Token 计数器（`↑` 输入、`↓` 输出） | 开启 | 流式生成中带 `…` 动态提示 |
+| `cache` | Prompt 缓存命中率与减免量（`⚡缓存 80% (12.0k)`） | 开启 | 无缓存字段时自动干净省略 |
+| `quota` | 官方 OAuth 配额（`5h` / `7d` / `1m` 及重置倒计时） | 开启 | 自动适配官方 OAuth 订阅会话 |
+| `cost` | 会话累计花费（`$0.37`） | 开启 | 适用于 API Key 按量计费会话 |
+| `cwd` | 紧凑工作区路径 | 开启 | `$HOME` 折叠为 `~`，深层目录智能省略 |
+
+> [!NOTE]
+> **关于各 CLI 的缓存支持**：缓存命中率（`cache`）依赖上游 CLI 在 statusline payload 中提供缓存数据。Claude Code (`cc`) 与 OpenAI Codex (`codex`) 原生支持导出缓存指标。Antigravity CLI (`agy`) 目前官方 payload 尚未开放缓存指标字段，因此在 `agy` 环境下该模块自动干净省略，不显示占位符或报错。
+
 ### 单体二进制文件运行（可选，免 Python 环境）
 
 如果你不想在目标环境配置 Python 环境，也可以使用单体二进制文件：

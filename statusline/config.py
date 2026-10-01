@@ -324,10 +324,10 @@ def run_tui():
                 box = f"{GREEN}[x]{RESET}" if enabled else f"{GRAY}[ ]{RESET}"
                 cursor = f"{BOLD}{CYAN}❯{RESET}" if idx == selected_idx else " "
                 meta_desc = MODULE_META.get(item, {}).get(lang, item)
-                item_name = f"{BOLD}{item.ljust(8)}{RESET}" if idx == selected_idx else item.ljust(8)
+                item_name = f"{BOLD}{item.ljust(10)}{RESET}" if idx == selected_idx else item.ljust(10)
 
                 lines.append(
-                    f"  {cursor} {box} {idx + 1}. {item_name}  {GRAY}│{RESET} {meta_desc}"
+                    f"  {cursor} {box} {str(idx + 1).rjust(2)}. {item_name}  {GRAY}│{RESET} {meta_desc}"
                 )
 
             lines.extend([

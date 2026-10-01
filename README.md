@@ -182,6 +182,47 @@ python statusline.py config
 python statusline.py subagent
 ```
 
+### Visual TUI Configuration Wizard
+
+Configure visible modules, reorder segments, and toggle language interactively:
+
+```bash
+python statusline.py config
+
+# Or with standalone binary:
+statusline config
+```
+
+Settings are saved to `~/.config/cc-status-line/config.json`.
+
+| Key | Action |
+| --- | --- |
+| `↑` / `↓` | Move cursor between modules |
+| `Space` | Toggle module enabled / disabled (`[x]` / `[ ]`) |
+| `+` / `-` (or `K` / `J`) | Reorder module forward / backward |
+| `L` / `Tab` | Switch language between English and Chinese |
+| `Enter` | Save and apply configuration immediately |
+| `Q` / `Esc` | Exit without saving |
+
+#### Available Configurable Modules
+
+| Module ID | Description | Default | Notes |
+| --- | --- | --- | --- |
+| `model` | Model Identifier (e.g. `Opus 5`, `Gemini 2.5 Pro`) | Enabled | First item by default |
+| `state` | Agent State (`Idle`, `Running`, `Thinking`, `Auth`) | Enabled | Colored cyan/yellow/gray |
+| `env` | Virtual Environment & Project Runtime | Enabled | Detects `.venv`, `conda`, `pnpm`, `bun`, `go`, `rust`, etc. |
+| `git` | Git branch & dirty marker (`main ✓` / `main ●`) | Enabled | Detached HEAD falls back to short SHA |
+| `git_stat` | Git diff uncommitted lines (`+42 -12`) | Enabled | Green for additions, red for deletions |
+| `context` | Context window usage bar & percentage | Enabled | Colored thresholds at 65% / 85% |
+| `tokens` | Token counter (`↑` input, `↓` output) | Enabled | Shows streaming indicator `…` during generation |
+| `cache` | Prompt cache hit rate (`⚡cache 80% (12.0k)`) | Enabled | Omitted if CLI/session provides no cache metrics |
+| `quota` | Official OAuth subscription quota & countdown | Enabled | Standard buckets `5h`, `7d`, `1m` |
+| `cost` | Session cost in USD (`$0.37`) | Enabled | Shown for API key billing sessions |
+| `cwd` | Shortened workspace path | Enabled | Collapses `$HOME` to `~` |
+
+> [!NOTE]
+> **Prompt Cache Across CLIs**: Cache hit rate (`cache`) requires the upstream CLI payload to include cache metrics. Claude Code (`cc`) and OpenAI Codex (`codex`) natively export cache fields. For Antigravity CLI (`agy`), cache metrics are not currently exposed in its official statusline payload, so the segment degrades cleanly and is omitted automatically.
+
 ### Standalone Binary (Optional)
 
 If you prefer not having Python installed or want a single executable:
